@@ -47,6 +47,18 @@ app.use('/webhook', webhookRoutes);
 app.use('/', configRoutes);
 app.use('/api/examples', examplesRoutes);
 
+// Ruta principal con mensaje de confirmación
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Backend Saberi funcionando',
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    platform: 'Vercel'
+  });
+});
+
 // Ruta de salud
 app.get('/health', (req, res) => {
   res.json({ 
