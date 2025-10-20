@@ -10,10 +10,10 @@ const app = express();
 
 // Configuración de Kommo
 const KOMMO_CONFIG = {
-  clientId: '59180966-188f-4f82-a4e2-0ceeb6f23fbb',
-  clientSecret: 'xSy2LMLPtxKem6ZyPAewVnNmRfNLuKY2xsy2m8UC336UKdvPiUzNnkL7jQ8kqyCb',
-  accessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6IjJiMmIwNWM3MTAzYWEzM2I3MTA1YWU0MjI1OTYwNDE5MDIzMmNkZTVhMGEwZTliOWEwNGNkNmJkNWRkYTc0ZDhlMjJiYjI2NmZhZGFhMzkxIn0.eyJhdWQiOiI1OTE4MDk2Ni0xODhmLTRmODItYTRlMi0wY2VlYjZmMjNmYmIiLCJqdGkiOiIyYjJiMDVjNzEwM2FhMzNiNzEwNWFlNDIyNTk2MDQxOTAyMzJjZGU1YTBhMGU5YjlhMDRjZDZiZDVkZGE3NGQ4ZTIyYmIyNjZmYWRhYTM5MSIsImlhdCI6MTc2MDk5NDg1NywibmJmIjoxNzYwOTk0ODU3LCJleHAiOjE4MjcxODcyMDAsInN1YiI6IjEwODMxMTgzIiwiZ3JhbnRfdHlwZSI6IiIsImFjY291bnRfaWQiOjM0Nzg4ODE1LCJiYXNlX2RvbWFpbiI6ImtvbW1vLmNvbSIsInZlcnNpb24iOjIsInNjb3BlcyI6WyJjcm0iLCJmaWxlcyIsImZpbGVzX2RlbGV0ZSIsIm5vdGlmaWNhdGlvbnMiLCJwdXNoX25vdGlmaWNhdGlvbnMiXSwiaGFzaF91dWlkIjoiN2I3Y2Y4NWItMDdjNy00NDFjLWFmMTMtM2U3ODEzZjA0YTJlIiwidXNlcl9mbGFncyI6MCwiYXBpX2RvbWFpbiI6ImFwaS1jLmtvbW1vLmNvbSJ9.Zq2l9S-oAdwp0XbC-TB9igYPUAKNM3gA58-J8hmpDwajngjDjWW9dxRaGg3GhgRb4NmYVWOatmeYefqXa1Lo-21xGVYP-w9zj0NRjoiiDygL5CdadEZQ_6u4ku5naUVi301lAIt9lBzKq6aevC6Kzd-ygVo1PD1W_S05d4IwAbAOe2uaDcLhvdjbqfHPDn51KF0WC45uq7UXXC25UaqUonqP7aJkWKOf3NnPL1bu4JBhbolXxGvtAdSQeH8MW_5pG1BLCMt8Tg-WCUnm9m7hrV_MabLJcLEQ7AhAUq-jGOLLEH8JZvAF6wR00F9P6nj7dSjFX2o7WY9t3pEOvv1X_Q',
-  baseURL: 'https://api-c.kommo.com/api/v4',
+  clientId: '0122a369-fc83-4db7-a404-3165b78715df',
+  clientSecret: 'cV5xy4OIC1kjVwjirTPWcVmAopr4YtSpO4pd08DuchqI6pQ2c7uJ0kye703TjiM8',
+  accessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6ImM5NTBjY2FmMjVhMDFlMTI3ZWZlMmFiMjI4YzBkNDI5MzE4ZGE5NzUzNWU2YzBmMWI0YWQzZTAxMGJjZjdmMzU1ZTc5MTNiNzUwMzY1OGEyIn0.eyJhdWQiOiIwMTIyYTM2OS1mYzgzLTRkYjctYTQwNC0zMTY1Yjc4NzE1ZGYiLCJqdGkiOiJjOTUwY2NhZjI1YTAxZTEyN2VmZTJhYjIyOGMwZDQyOTMxOGRhOTc1MzVlNmMwZjFiNGFkM2UwMTBiY2Y3ZjM1NWU3OTEzYjc1MDM2NThhMiIsImlhdCI6MTc2MTAwMDkwOSwibmJmIjoxNzYxMDAwOTA5LCJleHAiOjE3NjE4Njg4MDAsInN1YiI6IjEwODMxMTgzIiwiZ3JhbnRfdHlwZSI6IiIsImFjY291bnRfaWQiOjMyNDIzNjY3LCJiYXNlX2RvbWFpbiI6ImtvbW1vLmNvbSIsInZlcnNpb24iOjIsInNjb3BlcyI6WyJjcm0iLCJmaWxlcyIsImZpbGVzX2RlbGV0ZSIsIm5vdGlmaWNhdGlvbnMiLCJwdXNoX25vdGlmaWNhdGlvbnMiXSwiaGFzaF91dWlkIjoiODRhNDE5MDEtNGJiNi00YjBkLWI0ODEtMTQ3NjU5YzRlOGE0IiwidXNlcl9mbGFncyI6MCwiYXBpX2RvbWFpbiI6ImFwaS1nLmtvbW1vLmNvbSJ9.m6YLInEMxstNpDX-PS1R5P6B4nLHwnaMVVtoKVI5WbAy7RIh_zo390Ib-FRO41NslvkJuZAV17E986aGduusMG4TLJ4scu4cQDqku8iQdent8XVp8qdxLnePvFSTW6iwUEVrPhj78cWBk49JZJKlVoYcw7kRb4QOdlEotSjLXMnOdZfKvzEimeCRQbR4pmZbKGSXA3gxCdX5iri1dYiDvOeqeBhc0SV2Qj-30PEKI2FoiNTgA0vElW9X2tbiHepeCRiOvntNQc7WAfie6IXH57bwhrTBOXaUSgA21bsO61wtgwNZYrF787QV9qCWUSUrFittec3BqTPFMwXEat5f4A',
+  baseURL: 'https://api-g.kommo.com/api/v4',
   webhookSecret: process.env.KOMMO_WEBHOOK_SECRET || 'tu_webhook_secret_aqui'
 };
 
@@ -21,6 +21,158 @@ const KOMMO_CONFIG = {
 let phrases = [];
 let funnels = [];
 let processedLeads = new Set();
+
+// Configuración de frases específicas con etapas
+const COURSE_PHRASES = {
+  // PRIMERAS 3 FRASES - MOVIMIENTO SECUENCIAL
+  'higienista dental': {
+    keyword: 'higienista dental',
+    stageId: 94705068, // Primera etapa
+    message: '¡Hola! Quiero más información sobre el curso de higienista dental'
+  },
+  'farmacia': {
+    keyword: 'farmacia',
+    stageId: 94705072, // Segunda etapa
+    message: '¡Hola! Quiero más información sobre el curso de farmacia'
+  },
+  'inyectologia': {
+    keyword: 'inyectologia',
+    stageId: 94705076, // Tercera etapa
+    message: '¡Hola! Quiero más información sobre el curso de inyectologia'
+  },
+  'electricidad': {
+    keyword: 'electricidad',
+    message: '¡Hola! Quiero más información sobre el curso de electricidad'
+  },
+  'camaras': {
+    keyword: 'camaras',
+    message: '¡Hola! Quiero más información sobre el curso de camaras'
+  },
+  'celulares': {
+    keyword: 'celulares',
+    message: '¡Hola! Quiero más información sobre el curso de celulares'
+  },
+  'impresion 3d': {
+    keyword: 'impresion 3d',
+    message: '¡Hola! Quiero más información sobre el curso de impresion 3d adultos'
+  },
+  'drones': {
+    keyword: 'drones',
+    message: '¡Hola! Quiero más información sobre el curso de drones'
+  },
+  'robotica para adultos': {
+    keyword: 'robotica para adultos',
+    message: '¡Hola! Quiero más información sobre el curso de robotica adultos'
+  },
+  'paneles solares': {
+    keyword: 'paneles solares',
+    message: '¡Hola! Quiero más información sobre el curso de paneles solares'
+  },
+  'aires acondicionado': {
+    keyword: 'aires acondicionado',
+    message: '¡Hola! Quiero más información sobre el curso de aires acondicionados'
+  },
+  'electronica': {
+    keyword: 'electronica',
+    message: '¡Hola! Quiero más información sobre el curso de electronica'
+  },
+  'drones fpv': {
+    keyword: 'drones fpv',
+    message: '¡Hola! Quiero más información sobre el curso de drones fpv'
+  },
+  'cnc router': {
+    keyword: 'cnc router',
+    message: '¡Hola! Quiero más información sobre el curso de cnc router'
+  },
+  'pasteleria': {
+    keyword: 'pasteleria',
+    message: '¡Hola! Quiero más información sobre el curso de pasteleria'
+  },
+  'cocteleria': {
+    keyword: 'cocteleria',
+    message: '¡Hola! Quiero más información sobre el curso de cocteleria'
+  },
+  'cocina': {
+    keyword: 'cocina',
+    message: '¡Hola! Quiero más información sobre el curso de cocina'
+  },
+  'panaderia': {
+    keyword: 'panaderia',
+    message: '¡Hola! Quiero más información sobre el curso de panaderia'
+  },
+  'uñas': {
+    keyword: 'uñas',
+    message: '¡Hola! Quiero más información sobre el curso de uñas'
+  },
+  'peluqueria': {
+    keyword: 'peluqueria',
+    message: '¡Hola! Quiero más información sobre el curso de peluqueria'
+  },
+  'colorimetria': {
+    keyword: 'colorimetria',
+    message: '¡Hola! Quiero más información sobre el curso de fundamentos de colorimetria'
+  },
+  'maquillaje': {
+    keyword: 'maquillaje',
+    message: '¡Hola! Quiero más información sobre el curso de maquillaje'
+  },
+  'barberia': {
+    keyword: 'barberia',
+    message: '¡Hola! Quiero más información sobre el curso de barberia'
+  },
+  'lashista': {
+    keyword: 'lashista',
+    message: '¡Hola! Quiero más información sobre el curso de lashista'
+  },
+  'micropigmentacion': {
+    keyword: 'micropigmentacion',
+    message: '¡Hola! Quiero más información sobre el curso de micropigmentacion'
+  },
+  'marketing digital': {
+    keyword: 'marketing digital',
+    message: '¡Hola! Quiero más información sobre el curso de marketing digital'
+  },
+  'globos': {
+    keyword: 'globos',
+    message: '¡Hola! Quiero más información sobre el curso de globos'
+  },
+  'parvulos': {
+    keyword: 'parvulos',
+    message: '¡Hola! Quiero más información sobre el curso de parvulos'
+  },
+  'colorimetria nivel 2': {
+    keyword: 'colorimetria nivel 2',
+    message: '¡Hola! Quiero más información sobre el curso de colorimetria nivel 2'
+  },
+  'pasteleria nivel 2': {
+    keyword: 'pasteleria nivel 2',
+    message: '¡Hola! Quiero más información sobre el curso de pasteleria nivel 2'
+  },
+  'cocina latina': {
+    keyword: 'cocina latina',
+    message: '¡Hola! Quiero más información sobre el curso de cocina latina'
+  },
+  'robotica con lego': {
+    keyword: 'robotica con lego',
+    message: '¡Hola! Quiero más información sobre el curso de robotica con lego'
+  },
+  'robotica con arduino': {
+    keyword: 'robotica con arduino',
+    message: '¡Hola! Quiero más información sobre el curso de robotica con arduino'
+  },
+  'impresion 3d niños': {
+    keyword: 'impresion 3d niños',
+    message: '¡Hola! Quiero más información sobre el curso de impresion 3d niños'
+  },
+  'videojuegos': {
+    keyword: 'videojuegos',
+    message: '¡Hola! Quiero más información sobre el curso de videojuegos'
+  },
+  'cocinarte': {
+    keyword: 'cocinarte',
+    message: '¡Hola! Quiero más información sobre el curso de cocinarte'
+  }
+};
 
 // Middleware de seguridad
 app.use(helmet());
@@ -298,6 +450,18 @@ app.post('/api/funnels', (req, res) => {
 function findMatchingPhrase(leadData) {
   const searchText = extractTextFromLead(leadData).toLowerCase();
   
+  // Buscar en las frases específicas de cursos
+  for (const [key, courseData] of Object.entries(COURSE_PHRASES)) {
+    if (searchText.includes(courseData.keyword.toLowerCase())) {
+      return {
+        phrase: courseData.keyword,
+        message: courseData.message,
+        course: key
+      };
+    }
+  }
+  
+  // Buscar en frases configuradas dinámicamente (fallback)
   for (const phrase of phrases) {
     if (phrase.is_active && searchText.includes(phrase.phrase)) {
       return phrase;
@@ -335,7 +499,36 @@ function extractTextFromLead(leadData) {
   return textParts.join(' ').trim();
 }
 
-// Función para enviar a embudo
+// Función para mover lead a etapa específica
+async function moveLeadToStage(leadId, stageId) {
+  try {
+    const response = await axios.patch(`${KOMMO_CONFIG.baseURL}/leads/${leadId}`, {
+      pipeline_id: 10826340, // ID del embudo
+      status_id: stageId
+    }, {
+      headers: {
+        'Authorization': `Bearer ${KOMMO_CONFIG.accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    return {
+      success: true,
+      status: response.status,
+      stageId: stageId,
+      response: response.data
+    };
+  } catch (error) {
+    console.error('Error moviendo lead a etapa:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.message,
+      status: error.response?.status
+    };
+  }
+}
+
+// Función para enviar a embudo (mantener compatibilidad)
 async function sendToFunnel(leadData, phrase) {
   try {
     const funnel = funnels.find(f => f.id === phrase.funnel_id && f.is_active);
@@ -431,14 +624,22 @@ app.post('/webhook/kommo', async (req, res) => {
       });
     }
     
-    // Enviar al embudo
-    const result = await sendToFunnel(leadData, matchingPhrase);
+    // Mover lead a etapa específica
+    let result;
+    if (matchingPhrase.stageId) {
+      result = await moveLeadToStage(leadData.id, matchingPhrase.stageId);
+    } else {
+      // Para frases sin etapa específica, usar etapa por defecto
+      result = await moveLeadToStage(leadData.id, 94705068); // Etapa por defecto
+    }
     
     // Marcar como procesado
     processedLeads.add(leadData.id);
     
     console.log(`Lead ${leadData.id} procesado:`, {
       phrase: matchingPhrase.phrase,
+      course: matchingPhrase.course,
+      stageId: matchingPhrase.stageId || 94705068,
       success: result.success
     });
     
@@ -446,9 +647,11 @@ app.post('/webhook/kommo', async (req, res) => {
       received: true,
       processed: result.success,
       phrase: matchingPhrase.phrase,
+      course: matchingPhrase.course,
+      stageId: matchingPhrase.stageId || 94705068,
       message: result.success ? 
-        `Lead enviado al embudo ${matchingPhrase.funnel_id}` : 
-        `Error enviando lead: ${result.error}`,
+        `Lead movido a etapa ${matchingPhrase.stageId || 94705068}` : 
+        `Error moviendo lead: ${result.error}`,
       platform: 'Vercel'
     });
   } catch (error) {
@@ -525,10 +728,65 @@ app.get('/api/stats', (req, res) => {
       funnels_count: funnels.length,
       processed_leads: processedLeads.size,
       active_phrases: phrases.filter(p => p.is_active).length,
-      active_funnels: funnels.filter(f => f.is_active).length
+      active_funnels: funnels.filter(f => f.is_active).length,
+      course_phrases_count: Object.keys(COURSE_PHRASES).length
     },
     platform: 'Vercel'
   });
+});
+
+// Obtener frases de cursos configuradas
+app.get('/api/course-phrases', (req, res) => {
+  res.json({
+    success: true,
+    course_phrases: COURSE_PHRASES,
+    count: Object.keys(COURSE_PHRASES).length,
+    platform: 'Vercel'
+  });
+});
+
+// Probar detección de frase
+app.post('/api/test-phrase', (req, res) => {
+  try {
+    const { text } = req.body;
+    
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        error: 'Texto es requerido'
+      });
+    }
+    
+    // Simular datos de lead
+    const mockLeadData = {
+      id: 'test-123',
+      name: 'Lead de Prueba',
+      contacts: [{
+        name: 'Test User',
+        first_name: 'Test',
+        last_name: 'User'
+      }],
+      custom_fields_values: [{
+        values: [{ value: text }]
+      }]
+    };
+    
+    const matchingPhrase = findMatchingPhrase(mockLeadData);
+    
+    res.json({
+      success: true,
+      text: text,
+      matched: !!matchingPhrase,
+      phrase: matchingPhrase,
+      platform: 'Vercel'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error probando frase',
+      details: error.message
+    });
+  }
 });
 
 // Manejo de errores
