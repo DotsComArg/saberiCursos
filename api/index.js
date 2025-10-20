@@ -17,7 +17,7 @@ const KOMMO_CONFIG = {
   webhookSecret: process.env.KOMMO_WEBHOOK_SECRET || 'tu_webhook_secret_aqui'
 };
 
-// Almacenamiento en memoria (en producción usar base de datos)
+// Almacenamiento  en memoria (en producción usar base de datos)
 let phrases = [];
 let funnels = [];
 let processedLeads = new Set();
