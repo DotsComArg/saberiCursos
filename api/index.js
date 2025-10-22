@@ -580,22 +580,51 @@ app.post('/webhook/kommo', async (req, res) => {
     console.log('Webhook recibido de Kommo:', {
       type: webhookData.type,
       lead_id: webhookData.lead?.id,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      full_data: webhookData
     });
     
-    // Verificar que es un evento de lead
-    if (webhookData.type !== 'lead_add' && webhookData.type !== 'lead_update') {
+    // Verificar diferentes formatos de webhook de Kommo
+    let leadData = null;
+    let eventType = null;
+    
+    // Formato 1: webhookData.lead
+    if (webhookData.lead) {
+      leadData = webhookData.lead;
+      eventType = webhookData.type;
+    }
+    // Formato 2: webhookData directamente
+    else if (webhookData.id) {
+      leadData = webhookData;
+      eventType = 'lead_add'; // Asumir que es un lead nuevo
+    }
+    // Formato 3: webhookData.data
+    else if (webhookData.data) {
+      leadData = webhookData.data;
+      eventType = webhookData.type || 'lead_add';
+    }
+    
+    console.log('Datos procesados:', {
+      eventType,
+      leadData,
+      hasLead: !!leadData
+    });
+    
+    if (!leadData) {
       return res.json({ 
         received: true, 
-        message: 'Evento no relevante',
+        message: 'No se encontraron datos de lead',
+        webhook_data: webhookData,
         platform: 'Vercel'
       });
     }
     
-    const leadData = webhookData.lead;
-    if (!leadData) {
-      return res.status(400).json({ 
-        error: 'Datos de lead no encontrados',
+    // Verificar que es un evento de lead (más flexible)
+    if (eventType && eventType !== 'lead_add' && eventType !== 'lead_update') {
+      return res.json({ 
+        received: true, 
+        message: 'Evento no relevante',
+        event_type: eventType,
         platform: 'Vercel'
       });
     }
@@ -845,6 +874,67 @@ app.post('/api/test-webhook', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Error probando webhook',
+      details: error.message
+    });
+  }
+});
+
+// Endpoint para simular webhook de Kommo
+app.post('/api/simulate-webhook', (req, res) => {
+  try {
+    const { text } = req.body;
+    
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        error: 'Texto es requerido'
+      });
+    }
+    
+    // Simular datos de webhook de Kommo
+    const webhookData = {
+      type: 'lead_add',
+      lead: {
+        id: 'sim-' + Date.now(),
+        name: `Lead de prueba: ${text}`,
+        contacts: [{
+          name: 'Test User',
+          first_name: 'Test',
+          last_name: 'User'
+        }],
+        custom_fields_values: [{
+          values: [{ value: text }]
+        }]
+      }
+    };
+    
+    // Procesar como si fuera un webhook real
+    const leadData = webhookData.lead;
+    const matchingPhrase = findMatchingPhrase(leadData);
+    
+    if (!matchingPhrase) {
+      return res.json({
+        success: false,
+        message: 'No se encontró frase coincidente',
+        webhook_data: webhookData,
+        extracted_text: extractTextFromLead(leadData)
+      });
+    }
+    
+    res.json({
+      success: true,
+      webhook_data: webhookData,
+      phrase: matchingPhrase.phrase,
+      course: matchingPhrase.course,
+      stageId: matchingPhrase.stageId || 94843344,
+      extracted_text: extractTextFromLead(leadData),
+      message: `El lead se movería a la etapa ${matchingPhrase.stageId || 94843344}`
+    });
+  } catch (error) {
+    console.error('Error simulando webhook:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error simulando webhook',
       details: error.message
     });
   }
