@@ -813,6 +813,32 @@ app.post('/webhook/kommo', async (req, res) => {
         platform: 'Vercel'
       });
     }
+    // Formato 7: webhookData.message.add (MENSAJES NUEVOS)
+    else if (webhookData.message && webhookData.message.add && webhookData.message.add.length > 0) {
+      const messagesToProcess = webhookData.message.add;
+      console.log(`Procesando ${messagesToProcess.length} mensajes nuevos`);
+      
+      for (const message of messagesToProcess) {
+        try {
+          // Extraer el ID del lead del mensaje
+          const leadId = message.element_id;
+          if (leadId) {
+            console.log(`Procesando mensaje para lead ${leadId}:`, message);
+            await processLead({ id: leadId }, 'message_add');
+          }
+        } catch (error) {
+          console.error(`Error procesando mensaje ${message.id}:`, error);
+        }
+      }
+      
+      return res.json({
+        received: true,
+        processed: true,
+        messages_processed: messagesToProcess.length,
+        message: `Procesados ${messagesToProcess.length} mensajes`,
+        platform: 'Vercel'
+      });
+    }
     
     console.log('Datos procesados:', {
       eventType,
