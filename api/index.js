@@ -29,7 +29,29 @@ let phrases = [];
 let funnels = [];
 let processedLeads = new Set();
 
-// Configuración de frases específicas con etapas
+// Mapeo centralizado de frases → status_id para mensajes entrantes
+const MESSAGE_PHRASE_MAPPING = {
+  // Reglas de avance a compra
+  'confirmo que quiero avanzar a pago': 86115943,
+  'quiero avanzar a pago': 86115943,
+  'confirmo pago': 86115943,
+  'quiero pagar': 86115943,
+  'proceder con pago': 86115943,
+  
+  // Reglas de asesor/humano
+  'quiero hablar con un asesor': 87384179,
+  'necesito hablar con un asesor': 87384179,
+  'quiero asesor': 87384179,
+  'hablar con asesor': 87384179,
+  'contacto humano': 87384179,
+  'quiero hablar con alguien': 87384179,
+  
+  // Reglas adicionales que puedes agregar aquí
+  'cancelar': 12345678, // Ejemplo de status_id para cancelación
+  'no estoy interesado': 12345679, // Ejemplo de status_id para no interesado
+};
+
+// Configuración de frases específicas con etapas (mantener para compatibilidad)
 const COURSE_PHRASES = {
   // PRIMERAS 3 FRASES - MOVIMIENTO SECUENCIAL
   'higienista dental': {
@@ -216,7 +238,10 @@ app.get('/', (req, res) => {
       kommo: '/api/kommo',
       phrases: '/api/phrases',
       funnels: '/api/funnels',
-      webhook: '/webhook/kommo'
+      webhook: '/webhook/kommo',
+      messagePhrases: '/api/message-phrases',
+      testMessagePhrase: '/api/test-message-phrase',
+      simulateMessageWebhook: '/api/simulate-message-webhook'
     }
   });
 });
@@ -596,6 +621,93 @@ async function sendToFunnel(leadData, phrase) {
   }
 }
 
+// ===== FUNCIONES PARA MENSAJES ENTRANTES =====
+
+// Función para parsear datos URL-encoded y extraer campos del webhook
+function parseWebhookData(rawBody) {
+  try {
+    // Parsear application/x-www-form-urlencoded
+    const parsed = new URLSearchParams(rawBody);
+    const data = {};
+    
+    // Convertir URLSearchParams a objeto, preservando claves con corchetes
+    for (const [key, value] of parsed.entries()) {
+      data[key] = value;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error parseando webhook data:', error);
+    return null;
+  }
+}
+
+// Función para extraer campos relevantes del webhook de mensaje entrante
+function extractMessageFields(webhookData) {
+  const fields = {
+    subdomain: webhookData['account[subdomain]'] || process.env.KOMMO_DEFAULT_SUBDOMAIN || 'dotscomagency',
+    message_id: webhookData['message[add][0][id]'],
+    chat_id: webhookData['message[add][0][chat_id]'],
+    lead_id: webhookData['message[add][0][element_id]'] || webhookData['message[add][0][entity_id]'],
+    text: webhookData['message[add][0][text]'],
+    attachment_type: webhookData['message[add][0][attachment][type]'],
+    attachment_link: webhookData['message[add][0][attachment][link]']
+  };
+  
+  return fields;
+}
+
+// Función para buscar frase coincidente en el texto del mensaje usando las reglas existentes
+function findMatchingMessagePhrase(text) {
+  if (!text || typeof text !== 'string') {
+    return null;
+  }
+  
+  const lowerText = text.toLowerCase().trim();
+  
+  // Buscar en las frases específicas de cursos (usar las reglas existentes)
+  for (const [key, courseData] of Object.entries(COURSE_PHRASES)) {
+    if (lowerText.includes(courseData.keyword.toLowerCase())) {
+      return {
+        phrase: courseData.keyword,
+        stageId: courseData.stageId,
+        course: key,
+        message: courseData.message,
+        matched: true
+      };
+    }
+  }
+  
+  // Buscar en el mapeo de mensajes entrantes como fallback
+  for (const [phrase, statusId] of Object.entries(MESSAGE_PHRASE_MAPPING)) {
+    if (lowerText.includes(phrase.toLowerCase())) {
+      return {
+        phrase: phrase,
+        stageId: statusId,
+        matched: true
+      };
+    }
+  }
+  
+  return null;
+}
+
+// Función para mover lead a status_id específico vía API de Kommo (usar lógica existente)
+async function moveLeadToStatus(leadId, stageId) {
+  try {
+    // Usar la función existente moveLeadToStage que ya tiene la lógica correcta
+    const result = await moveLeadToStage(leadId, stageId);
+    return result;
+  } catch (error) {
+    console.error('Error moviendo lead a status:', error.response?.data || error.message);
+    return {
+      success: false,
+      error: error.message,
+      status: error.response?.status
+    };
+  }
+}
+
 // ===== WEBHOOK DE KOMMO =====
 
 // Función para procesar un lead individual
@@ -716,18 +828,142 @@ async function processLead(leadData, eventType) {
 // Webhook principal de Kommo
 app.post('/webhook/kommo', async (req, res) => {
   try {
-    const webhookData = req.body;
+    // Verificar Content-Type para determinar el tipo de parsing
+    const contentType = req.headers['content-type'] || '';
     
-    console.log('Webhook recibido de Kommo:', {
-      type: webhookData.type,
-      lead_id: webhookData.lead?.id,
-      timestamp: new Date().toISOString(),
-      full_data: webhookData
-    });
+    let webhookData;
     
-    // Verificar diferentes formatos de webhook de Kommo
-    let leadData = null;
-    let eventType = null;
+    if (contentType.includes('application/x-www-form-urlencoded')) {
+      // Parsear como URL-encoded (para mensajes entrantes)
+      const rawBody = req.body;
+      webhookData = parseWebhookData(rawBody);
+      
+      if (!webhookData) {
+        return res.status(400).json({
+          error: 'Error parseando datos del webhook',
+          type: 'parse_error'
+        });
+      }
+      
+      // Extraer campos específicos del mensaje entrante
+      const messageFields = extractMessageFields(webhookData);
+      
+      console.log('Webhook de mensaje entrante recibido:', {
+        subdomain: messageFields.subdomain,
+        message_id: messageFields.message_id,
+        chat_id: messageFields.chat_id,
+        lead_id: messageFields.lead_id,
+        has_text: !!messageFields.text,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Verificar que tenemos los campos mínimos necesarios
+      if (!messageFields.message_id || !messageFields.chat_id) {
+        // Si no hay message_id y chat_id, tratar como lead agregado/editado
+        return res.json({
+          type: 'lead_event',
+          message: 'Evento de lead (no mensaje entrante)',
+          processed: false
+        });
+      }
+      
+      // Si no hay texto, intentar obtener el mensaje del lead desde la API
+      if (!messageFields.text) {
+        console.log(`No hay texto en webhook, obteniendo mensaje del lead ${messageFields.lead_id} desde API...`);
+        
+        try {
+          // Obtener el lead completo desde Kommo para extraer el mensaje
+          const leadResponse = await axios.get(`${KOMMO_CONFIG.messagesURL}/leads/${messageFields.lead_id}?with=messages`, {
+            headers: {
+              'Authorization': `Bearer ${KOMMO_CONFIG.messagesToken}`,
+              'Content-Type': 'application/json',
+              'accept': 'application/json'
+            }
+          });
+          
+          // Extraer el último mensaje del lead
+          let lastMessage = null;
+          if (leadResponse.data._embedded && leadResponse.data._embedded.messages) {
+            const messages = leadResponse.data._embedded.messages;
+            if (messages.length > 0) {
+              // Ordenar por fecha y tomar el más reciente
+              const sortedMessages = messages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              lastMessage = sortedMessages[0];
+            }
+          }
+          
+          if (!lastMessage || !lastMessage.text) {
+            return res.json({
+              type: 'incoming_message_without_text',
+              message: 'No se pudo obtener texto del mensaje',
+              processed: false,
+              leadId: messageFields.lead_id
+            });
+          }
+          
+          // Usar el texto del mensaje obtenido de la API
+          messageFields.text = lastMessage.text;
+          console.log(`Texto obtenido de API: "${messageFields.text}"`);
+          
+        } catch (error) {
+          console.error(`Error obteniendo mensaje del lead ${messageFields.lead_id}:`, error.message);
+          return res.json({
+            type: 'incoming_message_without_text',
+            message: 'Error obteniendo mensaje del lead',
+            processed: false,
+            leadId: messageFields.lead_id,
+            error: error.message
+          });
+        }
+      }
+      
+      // Buscar frase coincidente usando las reglas existentes
+      const matchingPhrase = findMatchingMessagePhrase(messageFields.text);
+      
+      if (!matchingPhrase) {
+        return res.json({
+          type: 'no_stage_change',
+          message: 'No coincide con ninguna regla',
+          processed: false,
+          leadId: messageFields.lead_id,
+          text: messageFields.text
+        });
+      }
+      
+      // Mover lead al stage_id correspondiente usando la lógica existente
+      const moveResult = await moveLeadToStatus(
+        messageFields.lead_id, 
+        matchingPhrase.stageId
+      );
+      
+      // Logging sobrio
+      console.log(`Lead ${messageFields.lead_id}: texto="${messageFields.text}", movido=${moveResult.success}, stage_id=${matchingPhrase.stageId}`);
+      
+      return res.json({
+        type: 'incoming_message',
+        hasText: true,
+        moved: moveResult.success,
+        movedTo: moveResult.success ? matchingPhrase.stageId : null,
+        phrase: matchingPhrase.phrase,
+        course: matchingPhrase.course,
+        leadId: messageFields.lead_id,
+        error: moveResult.success ? null : moveResult.error
+      });
+    } else {
+      // Parsear como JSON (comportamiento existente)
+      webhookData = req.body;
+      
+      console.log('Webhook JSON recibido de Kommo:', {
+        type: webhookData.type,
+        lead_id: webhookData.lead?.id,
+        timestamp: new Date().toISOString(),
+        full_data: webhookData
+      });
+      
+      // Continuar con el procesamiento JSON existente
+      // Verificar diferentes formatos de webhook de Kommo
+      let leadData = null;
+      let eventType = null;
     
     // Formato 1: webhookData.lead (formato estándar)
     if (webhookData.lead) {
@@ -919,6 +1155,7 @@ app.post('/webhook/kommo', async (req, res) => {
         `Error moviendo lead: ${result.error}`,
       platform: 'Vercel'
     });
+    } // Cierre del else para JSON parsing
   } catch (error) {
     console.error('Error procesando webhook:', error);
     res.status(500).json({ 
@@ -1010,6 +1247,16 @@ app.get('/api/course-phrases', (req, res) => {
   });
 });
 
+// Obtener mapeo de frases para mensajes entrantes
+app.get('/api/message-phrases', (req, res) => {
+  res.json({
+    success: true,
+    message_phrases: MESSAGE_PHRASE_MAPPING,
+    count: Object.keys(MESSAGE_PHRASE_MAPPING).length,
+    platform: 'Vercel'
+  });
+});
+
 // Probar detección de frase
 app.post('/api/test-phrase', (req, res) => {
   try {
@@ -1049,6 +1296,37 @@ app.post('/api/test-phrase', (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Error probando frase',
+      details: error.message
+    });
+  }
+});
+
+// Probar detección de frase para mensajes entrantes
+app.post('/api/test-message-phrase', (req, res) => {
+  try {
+    const { text } = req.body;
+    
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        error: 'Texto es requerido'
+      });
+    }
+    
+    const matchingPhrase = findMatchingMessagePhrase(text);
+    
+    res.json({
+      success: true,
+      text: text,
+      matched: !!matchingPhrase,
+      phrase: matchingPhrase,
+      available_phrases: Object.keys(MESSAGE_PHRASE_MAPPING),
+      platform: 'Vercel'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Error probando frase de mensaje',
       details: error.message
     });
   }
@@ -1209,6 +1487,106 @@ app.post('/api/simulate-webhook', (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Error simulando webhook',
+      details: error.message
+    });
+  }
+});
+
+// Endpoint para probar obtención de mensajes de un lead
+app.get('/api/test-lead-messages/:leadId', async (req, res) => {
+  try {
+    const { leadId } = req.params;
+    
+    console.log(`Obteniendo mensajes del lead ${leadId}...`);
+    
+    // Obtener el lead completo desde Kommo
+    const leadResponse = await axios.get(`${KOMMO_CONFIG.messagesURL}/leads/${leadId}?with=messages`, {
+      headers: {
+        'Authorization': `Bearer ${KOMMO_CONFIG.messagesToken}`,
+        'Content-Type': 'application/json',
+        'accept': 'application/json'
+      }
+    });
+    
+    // Extraer mensajes
+    let messages = [];
+    if (leadResponse.data._embedded && leadResponse.data._embedded.messages) {
+      messages = leadResponse.data._embedded.messages;
+      // Ordenar por fecha
+      messages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+    
+    res.json({
+      success: true,
+      leadId: leadId,
+      messages: messages,
+      lastMessage: messages.length > 0 ? messages[0] : null,
+      count: messages.length
+    });
+  } catch (error) {
+    console.error('Error obteniendo mensajes del lead:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error obteniendo mensajes del lead',
+      details: error.message
+    });
+  }
+});
+
+// Endpoint para simular webhook de mensaje entrante (URL-encoded)
+app.post('/api/simulate-message-webhook', (req, res) => {
+  try {
+    const { text, lead_id = 'test-lead-123', subdomain = 'dotscomagency' } = req.body;
+    
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        error: 'Texto es requerido'
+      });
+    }
+    
+    // Simular datos de webhook URL-encoded de mensaje entrante
+    const webhookData = {
+      'account[subdomain]': subdomain,
+      'message[add][0][id]': 'msg-' + Date.now(),
+      'message[add][0][chat_id]': 'chat-' + Date.now(),
+      'message[add][0][element_id]': lead_id,
+      'message[add][0][text]': text
+    };
+    
+    // Simular el procesamiento como si fuera un webhook real
+    const messageFields = extractMessageFields(webhookData);
+    const matchingPhrase = findMatchingMessagePhrase(messageFields.text);
+    
+    if (!matchingPhrase) {
+      return res.json({
+        success: true,
+        type: 'no_stage_change',
+        message: 'No coincide con ninguna regla',
+        processed: false,
+        leadId: messageFields.lead_id,
+        text: messageFields.text,
+        available_phrases: Object.keys(MESSAGE_PHRASE_MAPPING)
+      });
+    }
+    
+    res.json({
+      success: true,
+      type: 'incoming_message',
+      hasText: true,
+      moved: true, // Simulado
+      movedTo: matchingPhrase.stageId,
+      phrase: matchingPhrase.phrase,
+      course: matchingPhrase.course,
+      leadId: messageFields.lead_id,
+      text: messageFields.text,
+      message: `El lead se movería al stage_id ${matchingPhrase.stageId}`
+    });
+  } catch (error) {
+    console.error('Error simulando webhook de mensaje:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error simulando webhook de mensaje',
       details: error.message
     });
   }
