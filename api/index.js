@@ -8,6 +8,9 @@ const crypto = require('crypto');
 
 const app = express();
 
+// Configurar trust proxy para Vercel
+app.set('trust proxy', 1);
+
 // Configuración de Kommo
 const KOMMO_CONFIG = {
   clientId: '5203501f-da3b-4c70-a69f-a60779c0827c',
@@ -572,6 +575,56 @@ async function sendToFunnel(leadData, phrase) {
 
 // ===== WEBHOOK DE KOMMO =====
 
+// Función para procesar un lead individual
+async function processLead(leadData, eventType) {
+  console.log(`Procesando lead ${leadData.id}:`, {
+    id: leadData.id,
+    name: leadData.name,
+    eventType
+  });
+  
+  // Evitar procesar duplicados
+  if (processedLeads.has(leadData.id)) {
+    console.log(`Lead ${leadData.id} ya fue procesado, saltando`);
+    return { processed: false, reason: 'already_processed' };
+  }
+  
+  // Buscar frase coincidente
+  const matchingPhrase = findMatchingPhrase(leadData);
+  
+  if (!matchingPhrase) {
+    console.log(`No se encontró frase coincidente para lead ${leadData.id}`);
+    return { processed: false, reason: 'no_match' };
+  }
+  
+  // Mover lead a etapa específica
+  let result;
+  if (matchingPhrase.stageId) {
+    result = await moveLeadToStage(leadData.id, matchingPhrase.stageId);
+  } else {
+    // Para frases sin etapa específica, usar etapa por defecto
+    result = await moveLeadToStage(leadData.id, 94843344);
+  }
+  
+  // Marcar como procesado
+  processedLeads.add(leadData.id);
+  
+  console.log(`Lead ${leadData.id} procesado:`, {
+    phrase: matchingPhrase.phrase,
+    course: matchingPhrase.course,
+    stageId: matchingPhrase.stageId || 94843344,
+    success: result.success
+  });
+  
+  return {
+    processed: result.success,
+    phrase: matchingPhrase.phrase,
+    course: matchingPhrase.course,
+    stageId: matchingPhrase.stageId || 94843344,
+    result: result
+  };
+}
+
 // Webhook principal de Kommo
 app.post('/webhook/kommo', async (req, res) => {
   try {
@@ -588,7 +641,7 @@ app.post('/webhook/kommo', async (req, res) => {
     let leadData = null;
     let eventType = null;
     
-    // Formato 1: webhookData.lead
+    // Formato 1: webhookData.lead (formato estándar)
     if (webhookData.lead) {
       leadData = webhookData.lead;
       eventType = webhookData.type;
@@ -602,6 +655,29 @@ app.post('/webhook/kommo', async (req, res) => {
     else if (webhookData.data) {
       leadData = webhookData.data;
       eventType = webhookData.type || 'lead_add';
+    }
+    // Formato 4: webhookData.leads.update (formato de Kommo)
+    else if (webhookData.leads && webhookData.leads.update && webhookData.leads.update.length > 0) {
+      // Procesar cada lead en la lista de actualizaciones
+      const leadsToProcess = webhookData.leads.update;
+      console.log(`Procesando ${leadsToProcess.length} leads actualizados`);
+      
+      // Procesar cada lead individualmente
+      for (const lead of leadsToProcess) {
+        try {
+          await processLead(lead, 'lead_update');
+        } catch (error) {
+          console.error(`Error procesando lead ${lead.id}:`, error);
+        }
+      }
+      
+      return res.json({
+        received: true,
+        processed: true,
+        leads_processed: leadsToProcess.length,
+        message: `Procesados ${leadsToProcess.length} leads`,
+        platform: 'Vercel'
+      });
     }
     
     console.log('Datos procesados:', {
