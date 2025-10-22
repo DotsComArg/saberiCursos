@@ -12,7 +12,7 @@ const app = express();
 const KOMMO_CONFIG = {
   clientId: '5203501f-da3b-4c70-a69f-a60779c0827c',
   clientSecret: 'K86nIF41dosVBSGxJLoMtO0RiRcm6lW6Nu9BckZemtghG6oXuJEAqDlsBcnl7y5B',
-  accessToken: '5203501f-da3b-4c70-a69f-a60779c0827c',
+  accessToken: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6ImVjMWJmMmYxZDMwNmM1MjEwN2NkMWQ0ZTA1MDgxN2U3NGM0MzBjYTk2ZjZkZmI1MDhjYTZjNjI4YTIzMTBjM2I0NDMxMjNmMTMzMDM2ZmFmIn0.eyJhdWQiOiI1MjAzNTAxZi1kYTNiLTRjNzAtYTY5Zi1hNjA3NzljMDgyN2MiLCJqdGkiOiJlYzFiZjJmMWQzMDZjNTIxMDdjZDFkNGUwNTA4MTdlNzRjNDMwY2E5NmY2ZGZiNTA4Y2E2YzYyOGEyMzEwYzNiNDQzMTIzZjEzMzAzNmZhZiIsImlhdCI6MTc2MTE2MzAzNiwibmJmIjoxNzYxMTYzMDM2LCJleHAiOjE3ODEzOTUyMDAsInN1YiI6IjEwODMxMTgzIiwiZ3JhbnRfdHlwZSI6IiIsImFjY291bnRfaWQiOjMyNDIzNjY3LCJiYXNlX2RvbWFpbiI6ImtvbW1vLmNvbSIsInZlcnNpb24iOjIsInNjb3BlcyI6WyJjcm0iLCJmaWxlcyIsImZpbGVzX2RlbGV0ZSIsIm5vdGlmaWNhdGlvbnMiLCJwdXNoX25vdGlmaWNhdGlvbnMiXSwiaGFzaF91dWlkIjoiMDBhNjM0OWMtODIwMC00ZDdlLWIzMDEtZGIxYjQzNzlmMjk4IiwidXNlcl9mbGFncyI6MCwiYXBpX2RvbWFpbiI6ImFwaS1nLmtvbW1vLmNvbSJ9.IineFkGcK0mldYI6nnEYgxX63-bAjTQiwEIFZGqUepYgin5OlqQbhNEJ5-pf9FS3o-2Hb0t1cgqSVik3KVnciSxNAxwEaYyrMfW_T45METqW7aMeJtWF0AnY2sWwltpbXcVtsohU5nw7HO1QTcTytkz9epQmgSg85Ab2BGgpqyR-2xSQyb-4yvqamGMwcaSYLQIVHywIzNdfzZ68rapxSwWMgOWcYoZyHE9klMD8-WmaOa1IZ7oDJLbnId1RFI6DPi-cLj_WqMv3q8yYrnggZT-st3Rej-zx1jUj9m8S1a_aN_o9JvnXilBjLzFgGP3z8eZ6zgTPfSy8VLwIi4PP9g',
   baseURL: 'https://api-g.kommo.com/api/v4',
   webhookSecret: process.env.KOMMO_WEBHOOK_SECRET || 'K86nIF41dosVBSGxJLoMtO0RiRcm6lW6Nu9BckZemtghG6oXuJEAqDlsBcnl7y5B'
 };
@@ -784,6 +784,67 @@ app.post('/api/test-phrase', (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Error probando frase',
+      details: error.message
+    });
+  }
+});
+
+// Endpoint para probar webhook manualmente
+app.post('/api/test-webhook', async (req, res) => {
+  try {
+    const { lead_id } = req.body;
+    
+    if (!lead_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'lead_id es requerido'
+      });
+    }
+    
+    // Obtener datos del lead desde Kommo
+    const response = await axios.get(`${KOMMO_CONFIG.baseURL}/leads/${lead_id}`, {
+      headers: {
+        'Authorization': `Bearer ${KOMMO_CONFIG.accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const leadData = response.data;
+    
+    // Buscar frase coincidente
+    const matchingPhrase = findMatchingPhrase(leadData);
+    
+    if (!matchingPhrase) {
+      return res.json({
+        success: false,
+        message: 'No se encontró frase coincidente',
+        lead_data: leadData,
+        extracted_text: extractTextFromLead(leadData)
+      });
+    }
+    
+    // Mover lead a etapa específica
+    let result;
+    if (matchingPhrase.stageId) {
+      result = await moveLeadToStage(leadData.id, matchingPhrase.stageId);
+    } else {
+      result = await moveLeadToStage(leadData.id, 94843344);
+    }
+    
+    res.json({
+      success: true,
+      lead_id: leadData.id,
+      phrase: matchingPhrase.phrase,
+      course: matchingPhrase.course,
+      stageId: matchingPhrase.stageId || 94843344,
+      move_result: result,
+      extracted_text: extractTextFromLead(leadData)
+    });
+  } catch (error) {
+    console.error('Error probando webhook:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error probando webhook',
       details: error.message
     });
   }
