@@ -1151,21 +1151,12 @@ app.post('/webhook/kommo', async (req, res) => {
         leadId: messageFields.lead_id,
         error: moveResult.success ? null : moveResult.error
       });
-    } else {
-      // Parsear como JSON (comportamiento existente)
-      webhookData = req.body;
-      
-      console.log('Webhook JSON recibido de Kommo:', {
-        type: webhookData.type,
-        lead_id: webhookData.lead?.id,
-        timestamp: new Date().toISOString(),
-        full_data: webhookData
-      });
-      
-      // Continuar con el procesamiento JSON existente
-      // Verificar diferentes formatos de webhook de Kommo
-      let leadData = null;
-      let eventType = null;
+    }
+    
+    // Continuar con el procesamiento JSON existente (comportamiento original)
+    // Verificar diferentes formatos de webhook de Kommo
+    let leadData = null;
+    let eventType = null;
     
     // Formato 1: webhookData.lead (formato estándar)
     if (webhookData.lead) {
@@ -1357,7 +1348,6 @@ app.post('/webhook/kommo', async (req, res) => {
         `Error moviendo lead: ${result.error}`,
       platform: 'Vercel'
     });
-    } // Cierre del else para JSON parsing
   } catch (error) {
     console.error('Error procesando webhook:', error);
     res.status(500).json({ 
