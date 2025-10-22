@@ -580,7 +580,8 @@ async function processLead(leadData, eventType) {
   console.log(`Procesando lead ${leadData.id}:`, {
     id: leadData.id,
     name: leadData.name,
-    eventType
+    eventType,
+    full_lead_data: leadData
   });
   
   // Evitar procesar duplicados
@@ -589,11 +590,17 @@ async function processLead(leadData, eventType) {
     return { processed: false, reason: 'already_processed' };
   }
   
+  // Extraer texto del lead para debugging
+  const extractedText = extractTextFromLead(leadData);
+  console.log(`Texto extraído del lead ${leadData.id}:`, extractedText);
+  
   // Buscar frase coincidente
   const matchingPhrase = findMatchingPhrase(leadData);
   
   if (!matchingPhrase) {
     console.log(`No se encontró frase coincidente para lead ${leadData.id}`);
+    console.log(`Texto extraído: "${extractedText}"`);
+    console.log(`Frases disponibles:`, Object.keys(COURSE_PHRASES));
     return { processed: false, reason: 'no_match' };
   }
   
