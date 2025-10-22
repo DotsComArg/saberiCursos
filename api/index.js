@@ -744,6 +744,52 @@ app.post('/webhook/kommo', async (req, res) => {
         platform: 'Vercel'
       });
     }
+    // Formato 5: webhookData.leads.add (nuevos leads)
+    else if (webhookData.leads && webhookData.leads.add && webhookData.leads.add.length > 0) {
+      const leadsToProcess = webhookData.leads.add;
+      console.log(`Procesando ${leadsToProcess.length} leads nuevos`);
+      
+      for (const lead of leadsToProcess) {
+        try {
+          await processLead(lead, 'lead_add');
+        } catch (error) {
+          console.error(`Error procesando lead ${lead.id}:`, error);
+        }
+      }
+      
+      return res.json({
+        received: true,
+        processed: true,
+        leads_processed: leadsToProcess.length,
+        message: `Procesados ${leadsToProcess.length} leads nuevos`,
+        platform: 'Vercel'
+      });
+    }
+    // Formato 6: webhookData.notes (eventos de notas)
+    else if (webhookData.notes && webhookData.notes.add && webhookData.notes.add.length > 0) {
+      const notesToProcess = webhookData.notes.add;
+      console.log(`Procesando ${notesToProcess.length} notas nuevas`);
+      
+      for (const note of notesToProcess) {
+        try {
+          // Obtener el lead asociado a la nota
+          const leadId = note.entity_id;
+          if (leadId) {
+            await processLead({ id: leadId }, 'note_add');
+          }
+        } catch (error) {
+          console.error(`Error procesando nota ${note.id}:`, error);
+        }
+      }
+      
+      return res.json({
+        received: true,
+        processed: true,
+        notes_processed: notesToProcess.length,
+        message: `Procesadas ${notesToProcess.length} notas`,
+        platform: 'Vercel'
+      });
+    }
     
     console.log('Datos procesados:', {
       eventType,
