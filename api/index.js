@@ -609,7 +609,7 @@ async function processLead(leadData, eventType) {
     return { processed: false, reason: 'already_processed' };
   }
   
-  // Obtener datos completos del lead desde la API de Kommo
+  // Intentar obtener datos completos del lead desde la API de Kommo
   let fullLeadData = leadData;
   try {
     console.log(`Obteniendo datos completos del lead ${leadData.id} desde la API...`);
@@ -623,6 +623,7 @@ async function processLead(leadData, eventType) {
     console.log(`Datos completos obtenidos para lead ${leadData.id}:`, fullLeadData);
   } catch (error) {
     console.error(`Error obteniendo datos completos del lead ${leadData.id}:`, error.message);
+    console.log(`Continuando con datos básicos del webhook...`);
     // Continuar con los datos básicos si falla la API
   }
   
@@ -994,6 +995,44 @@ app.post('/api/test-webhook', async (req, res) => {
       success: false,
       error: 'Error probando webhook',
       details: error.message
+    });
+  }
+});
+
+// Endpoint para probar conexión con Kommo
+app.get('/api/test-kommo-connection', async (req, res) => {
+  try {
+    console.log('Probando conexión con Kommo...');
+    
+    // Probar endpoint de cuenta
+    const accountResponse = await axios.get(`${KOMMO_CONFIG.baseURL}/account`, {
+      headers: {
+        'Authorization': `Bearer ${KOMMO_CONFIG.accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    // Probar endpoint de leads
+    const leadsResponse = await axios.get(`${KOMMO_CONFIG.baseURL}/leads?limit=1`, {
+      headers: {
+        'Authorization': `Bearer ${KOMMO_CONFIG.accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    res.json({
+      success: true,
+      account: accountResponse.data,
+      leads: leadsResponse.data,
+      message: 'Conexión con Kommo exitosa'
+    });
+  } catch (error) {
+    console.error('Error probando conexión con Kommo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error conectando con Kommo',
+      details: error.message,
+      status: error.response?.status
     });
   }
 });
