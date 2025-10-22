@@ -499,6 +499,25 @@ function extractTextFromLead(leadData) {
     });
   }
   
+  // Buscar en notas y comentarios
+  if (leadData.notes && leadData.notes.length > 0) {
+    leadData.notes.forEach(note => {
+      if (note.text) textParts.push(note.text);
+    });
+  }
+  
+  // Buscar en mensajes de chat
+  if (leadData.messages && leadData.messages.length > 0) {
+    leadData.messages.forEach(message => {
+      if (message.text) textParts.push(message.text);
+    });
+  }
+  
+  // Buscar en cualquier campo de texto
+  if (leadData.text) textParts.push(leadData.text);
+  if (leadData.description) textParts.push(leadData.description);
+  if (leadData.comment) textParts.push(leadData.comment);
+  
   return textParts.join(' ').trim();
 }
 
@@ -590,12 +609,29 @@ async function processLead(leadData, eventType) {
     return { processed: false, reason: 'already_processed' };
   }
   
+  // Obtener datos completos del lead desde la API de Kommo
+  let fullLeadData = leadData;
+  try {
+    console.log(`Obteniendo datos completos del lead ${leadData.id} desde la API...`);
+    const response = await axios.get(`${KOMMO_CONFIG.baseURL}/leads/${leadData.id}`, {
+      headers: {
+        'Authorization': `Bearer ${KOMMO_CONFIG.accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    fullLeadData = response.data;
+    console.log(`Datos completos obtenidos para lead ${leadData.id}:`, fullLeadData);
+  } catch (error) {
+    console.error(`Error obteniendo datos completos del lead ${leadData.id}:`, error.message);
+    // Continuar con los datos básicos si falla la API
+  }
+  
   // Extraer texto del lead para debugging
-  const extractedText = extractTextFromLead(leadData);
+  const extractedText = extractTextFromLead(fullLeadData);
   console.log(`Texto extraído del lead ${leadData.id}:`, extractedText);
   
   // Buscar frase coincidente
-  const matchingPhrase = findMatchingPhrase(leadData);
+  const matchingPhrase = findMatchingPhrase(fullLeadData);
   
   if (!matchingPhrase) {
     console.log(`No se encontró frase coincidente para lead ${leadData.id}`);
