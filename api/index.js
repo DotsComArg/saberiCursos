@@ -642,6 +642,29 @@ async function processLead(leadData, eventType) {
     fullLeadData = messagesResponse.data;
     console.log(`Mensajes obtenidos para lead ${leadData.id}:`, fullLeadData);
     
+    // Paso 3: Obtener mensajes específicos del lead (como en n8n)
+    console.log(`Paso 3: Obteniendo mensajes específicos del lead ${leadData.id}...`);
+    try {
+      const specificMessagesResponse = await axios.get(`${KOMMO_CONFIG.messagesURL}/leads/${leadData.id}?with=messages`, {
+        headers: {
+          'Authorization': `Bearer ${KOMMO_CONFIG.messagesToken}`,
+          'Content-Type': 'application/json',
+          'accept': 'application/json'
+        }
+      });
+      
+      console.log(`Mensajes específicos obtenidos para lead ${leadData.id}:`, specificMessagesResponse.data);
+      
+      // Combinar datos del lead con mensajes
+      if (specificMessagesResponse.data._embedded && specificMessagesResponse.data._embedded.messages) {
+        fullLeadData.messages = specificMessagesResponse.data._embedded.messages;
+        console.log(`Mensajes encontrados:`, fullLeadData.messages);
+      }
+      
+    } catch (error) {
+      console.error(`Error obteniendo mensajes específicos del lead ${leadData.id}:`, error.message);
+    }
+    
   } catch (error) {
     console.error(`Error obteniendo datos completos del lead ${leadData.id}:`, error.message);
     console.log(`Continuando con datos básicos del webhook...`);
