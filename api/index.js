@@ -845,6 +845,10 @@ app.post('/webhook/kommo', async (req, res) => {
         });
       }
       
+      // DEBUG: Mostrar todos los campos del webhook
+      console.log('DEBUG - Webhook data completo:', webhookData);
+      console.log('DEBUG - Claves disponibles:', Object.keys(webhookData));
+      
       // Extraer campos específicos del mensaje entrante
       const messageFields = extractMessageFields(webhookData);
       
@@ -857,8 +861,104 @@ app.post('/webhook/kommo', async (req, res) => {
         timestamp: new Date().toISOString()
       });
       
+      // DEBUG: Mostrar campos extraídos
+      console.log('DEBUG - Campos extraídos:', messageFields);
+      
       // Verificar que tenemos los campos mínimos necesarios
       if (!messageFields.message_id || !messageFields.chat_id) {
+        console.log('DEBUG - No hay message_id o chat_id, buscando otros formatos...');
+        
+        // Intentar extraer lead_id de otros campos posibles
+        let leadId = messageFields.lead_id;
+        if (!leadId) {
+          // Buscar lead_id en otros formatos
+          leadId = webhookData['lead_id'] || 
+                   webhookData['lead[id]'] || 
+                   webhookData['entity_id'] || 
+                   webhookData['element_id'] ||
+                   webhookData['id'];
+        }
+        
+        if (leadId) {
+          console.log(`DEBUG - Lead ID encontrado: ${leadId}, procesando como mensaje entrante...`);
+          
+          // Procesar como mensaje entrante usando el lead_id
+          try {
+            // Obtener el lead completo desde Kommo para extraer el mensaje
+            const leadResponse = await axios.get(`${KOMMO_CONFIG.messagesURL}/leads/${leadId}?with=messages`, {
+              headers: {
+                'Authorization': `Bearer ${KOMMO_CONFIG.messagesToken}`,
+                'Content-Type': 'application/json',
+                'accept': 'application/json'
+              }
+            });
+            
+            // Extraer el último mensaje del lead
+            let lastMessage = null;
+            if (leadResponse.data._embedded && leadResponse.data._embedded.messages) {
+              const messages = leadResponse.data._embedded.messages;
+              if (messages.length > 0) {
+                // Ordenar por fecha y tomar el más reciente
+                const sortedMessages = messages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                lastMessage = sortedMessages[0];
+              }
+            }
+            
+            if (!lastMessage || !lastMessage.text) {
+              return res.json({
+                type: 'incoming_message_without_text',
+                message: 'No se pudo obtener texto del mensaje',
+                processed: false,
+                leadId: leadId
+              });
+            }
+            
+            // Usar el texto del mensaje obtenido de la API
+            const messageText = lastMessage.text;
+            console.log(`DEBUG - Texto obtenido de API: "${messageText}"`);
+            
+            // Buscar frase coincidente usando las reglas existentes
+            const matchingPhrase = findMatchingMessagePhrase(messageText);
+            
+            if (!matchingPhrase) {
+              return res.json({
+                type: 'no_stage_change',
+                message: 'No coincide con ninguna regla',
+                processed: false,
+                leadId: leadId,
+                text: messageText
+              });
+            }
+            
+            // Mover lead al stage_id correspondiente usando la lógica existente
+            const moveResult = await moveLeadToStatus(leadId, matchingPhrase.stageId);
+            
+            // Logging sobrio
+            console.log(`Lead ${leadId}: texto="${messageText}", movido=${moveResult.success}, stage_id=${matchingPhrase.stageId}`);
+            
+            return res.json({
+              type: 'incoming_message',
+              hasText: true,
+              moved: moveResult.success,
+              movedTo: moveResult.success ? matchingPhrase.stageId : null,
+              phrase: matchingPhrase.phrase,
+              course: matchingPhrase.course,
+              leadId: leadId,
+              error: moveResult.success ? null : moveResult.error
+            });
+            
+          } catch (error) {
+            console.error(`Error procesando lead ${leadId}:`, error.message);
+            return res.json({
+              type: 'error',
+              message: 'Error procesando lead',
+              processed: false,
+              leadId: leadId,
+              error: error.message
+            });
+          }
+        }
+        
         // Si no hay message_id y chat_id, tratar como lead agregado/editado
         return res.json({
           type: 'lead_event',
