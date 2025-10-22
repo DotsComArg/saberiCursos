@@ -848,25 +848,127 @@ app.post('/webhook/kommo', async (req, res) => {
       // DEBUG: Mostrar todos los campos del webhook
       console.log('DEBUG - Webhook data completo:', webhookData);
       console.log('DEBUG - Claves disponibles:', Object.keys(webhookData));
+    } else {
+      // Parsear como JSON (webhook estándar de Kommo)
+      webhookData = req.body;
       
-      // Extraer campos específicos del mensaje entrante
-      const messageFields = extractMessageFields(webhookData);
+      // DEBUG: Mostrar todos los campos del webhook JSON
+      console.log('DEBUG - Webhook JSON completo:', webhookData);
+      console.log('DEBUG - Claves disponibles:', Object.keys(webhookData));
       
-      console.log('Webhook de mensaje entrante recibido:', {
-        subdomain: messageFields.subdomain,
-        message_id: messageFields.message_id,
-        chat_id: messageFields.chat_id,
-        lead_id: messageFields.lead_id,
-        has_text: !!messageFields.text,
-        timestamp: new Date().toISOString()
-      });
+      // Verificar si es un webhook de mensaje entrante en formato JSON
+      if (webhookData.account && webhookData.leads) {
+        console.log('DEBUG - Webhook JSON con account y leads detectado');
+        
+        // Intentar extraer datos del formato JSON de Kommo
+        const accountData = webhookData.account;
+        const leadsData = webhookData.leads;
+        
+        console.log('DEBUG - Account data:', accountData);
+        console.log('DEBUG - Leads data:', leadsData);
+        
+        // Buscar lead_id en diferentes formatos
+        let leadId = null;
+        let messageText = null;
+        
+        // Verificar si hay leads.add (nuevos leads)
+        if (leadsData.add && Array.isArray(leadsData.add) && leadsData.add.length > 0) {
+          const lead = leadsData.add[0];
+          leadId = lead.id;
+          console.log(`DEBUG - Lead ID encontrado en leads.add: ${leadId}`);
+        }
+        
+        // Verificar si hay leads.update (leads actualizados)
+        if (leadsData.update && Array.isArray(leadsData.update) && leadsData.update.length > 0) {
+          const lead = leadsData.update[0];
+          leadId = lead.id;
+          console.log(`DEBUG - Lead ID encontrado en leads.update: ${leadId}`);
+        }
+        
+        // Verificar si hay message.add (mensajes nuevos)
+        if (webhookData.message && webhookData.message.add && Array.isArray(webhookData.message.add) && webhookData.message.add.length > 0) {
+          const message = webhookData.message.add[0];
+          leadId = message.element_id || message.entity_id;
+          messageText = message.text;
+          console.log(`DEBUG - Mensaje encontrado: leadId=${leadId}, text="${messageText}"`);
+        }
+        
+        if (leadId) {
+          console.log(`DEBUG - Procesando lead ${leadId}...`);
+          
+          // Si no tenemos el texto del mensaje, obtenerlo de la API
+          if (!messageText) {
+            try {
+              console.log(`DEBUG - Obteniendo mensaje del lead ${leadId} desde API...`);
+              
+              const leadResponse = await axios.get(`${KOMMO_CONFIG.messagesURL}/leads/${leadId}?with=messages`, {
+                headers: {
+                  'Authorization': `Bearer ${KOMMO_CONFIG.messagesToken}`,
+                  'Content-Type': 'application/json',
+                  'accept': 'application/json'
+                }
+              });
+              
+              // Extraer el último mensaje del lead
+              if (leadResponse.data._embedded && leadResponse.data._embedded.messages) {
+                const messages = leadResponse.data._embedded.messages;
+                if (messages.length > 0) {
+                  // Ordenar por fecha y tomar el más reciente
+                  const sortedMessages = messages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                  messageText = sortedMessages[0].text;
+                  console.log(`DEBUG - Texto obtenido de API: "${messageText}"`);
+                }
+              }
+            } catch (error) {
+              console.error(`DEBUG - Error obteniendo mensaje del lead ${leadId}:`, error.message);
+            }
+          }
+          
+          if (!messageText) {
+            return res.json({
+              type: 'incoming_message_without_text',
+              message: 'No se pudo obtener texto del mensaje',
+              processed: false,
+              leadId: leadId
+            });
+          }
+          
+          // Buscar frase coincidente usando las reglas existentes
+          const matchingPhrase = findMatchingMessagePhrase(messageText);
+          
+          if (!matchingPhrase) {
+            return res.json({
+              type: 'no_stage_change',
+              message: 'No coincide con ninguna regla',
+              processed: false,
+              leadId: leadId,
+              text: messageText
+            });
+          }
+          
+          // Mover lead al stage_id correspondiente usando la lógica existente
+          const moveResult = await moveLeadToStatus(leadId, matchingPhrase.stageId);
+          
+          // Logging sobrio
+          console.log(`Lead ${leadId}: texto="${messageText}", movido=${moveResult.success}, stage_id=${matchingPhrase.stageId}`);
+          
+          return res.json({
+            type: 'incoming_message',
+            hasText: true,
+            moved: moveResult.success,
+            movedTo: moveResult.success ? matchingPhrase.stageId : null,
+            phrase: matchingPhrase.phrase,
+            course: matchingPhrase.course,
+            leadId: leadId,
+            error: moveResult.success ? null : moveResult.error
+          });
+        }
+      }
       
-      // DEBUG: Mostrar campos extraídos
-      console.log('DEBUG - Campos extraídos:', messageFields);
-      
-      // Verificar que tenemos los campos mínimos necesarios
-      if (!messageFields.message_id || !messageFields.chat_id) {
-        console.log('DEBUG - No hay message_id o chat_id, buscando otros formatos...');
+      // Continuar con el procesamiento JSON existente (comportamiento original)
+      // Verificar diferentes formatos de webhook de Kommo
+      let leadData = null;
+      let eventType = null;
         
         // Intentar extraer lead_id de otros campos posibles
         let leadId = messageFields.lead_id;
