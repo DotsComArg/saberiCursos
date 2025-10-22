@@ -27,17 +27,17 @@ const COURSE_PHRASES = {
   // PRIMERAS 3 FRASES - MOVIMIENTO SECUENCIAL
   'higienista dental': {
     keyword: 'higienista dental',
-    stageId: 94705068, // Primera etapa
+    stageId: 94374380, // Primera etapa
     message: '¡Hola! Quiero más información sobre el curso de higienista dental'
   },
   'farmacia': {
     keyword: 'farmacia',
-    stageId: 94705072, // Segunda etapa
+    stageId: 94374748, // Segunda etapa
     message: '¡Hola! Quiero más información sobre el curso de farmacia'
   },
   'inyectologia': {
     keyword: 'inyectologia',
-    stageId: 94705076, // Tercera etapa
+    stageId: 94374748, // Tercera etapa
     message: '¡Hola! Quiero más información sobre el curso de inyectologia'
   },
   'electricidad': {
@@ -630,7 +630,7 @@ app.post('/webhook/kommo', async (req, res) => {
       result = await moveLeadToStage(leadData.id, matchingPhrase.stageId);
     } else {
       // Para frases sin etapa específica, usar etapa por defecto
-      result = await moveLeadToStage(leadData.id, 94705068); // Etapa por defecto
+      result = await moveLeadToStage(leadData.id, 94843344); // Etapa por defecto
     }
     
     // Marcar como procesado
@@ -639,7 +639,7 @@ app.post('/webhook/kommo', async (req, res) => {
     console.log(`Lead ${leadData.id} procesado:`, {
       phrase: matchingPhrase.phrase,
       course: matchingPhrase.course,
-      stageId: matchingPhrase.stageId || 94705068,
+      stageId: matchingPhrase.stageId || 94843344,
       success: result.success
     });
     
@@ -648,9 +648,9 @@ app.post('/webhook/kommo', async (req, res) => {
       processed: result.success,
       phrase: matchingPhrase.phrase,
       course: matchingPhrase.course,
-      stageId: matchingPhrase.stageId || 94705068,
+      stageId: matchingPhrase.stageId || 94843344,
       message: result.success ? 
-        `Lead movido a etapa ${matchingPhrase.stageId || 94705068}` : 
+        `Lead movido a etapa ${matchingPhrase.stageId || 94843344}` : 
         `Error moviendo lead: ${result.error}`,
       platform: 'Vercel'
     });
